@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>سجل الفواتير</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&family=Zilla+Slab:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1F2A24;
+    --paper:#FAF7EF;
+    --paper-2:#F1ECDD;
+    --line:#DCD4BC;
+    --line-strong:#C6BB98;
+    --petrol:#0F3D3E;
+    --petrol-2:#155352;
+    --brass:#B8892F;
+    --brass-light:#EFDCAF;
+    --danger:#A5372B;
+    --danger-bg:#F6E4DF;
+    --muted:#6E6A5C;
+    --shadow: 0 1px 2px rgba(15,61,62,0.06);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Tajawal',sans-serif;
+    min-height:100vh;
+    padding:28px 20px 60px;
+  }
+  .wrap{max-width:1180px;margin:0 auto;}
+
+  /* header */
+  .topbar{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    flex-wrap:wrap;gap:16px;
+    border-bottom:2px solid var(--petrol);
+    padding-bottom:18px;margin-bottom:26px;
+  }
+  .brand-block h1{
+    font-family:'Zilla Slab',serif;
+    font-weight:600;font-size:30px;margin:0 0 4px;color:var(--petrol);
+  }
+  .brand-block p{margin:0;color:var(--muted);font-size:14px;}
+  .brand-tabs{display:flex;gap:8px;}
+  .brand-tab{
+    padding:8px 16px;border:1px solid var(--line-strong);border-radius:7px;
+    background:var(--paper);color:var(--muted);font-family:'Tajawal';font-size:14px;
+    font-weight:500;cursor:pointer;
+  }
+  .brand-tab.active{
+    background:var(--petrol);color:#fff;border-color:var(--petrol);
+  }
+
+  /* metrics */
+  .metrics{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:26px;
+  }
+  .metric{
+    background:var(--paper-2);border:1px solid var(--line);border-radius:10px;
+    padding:14px 16px;
+  }
+  .metric .label{font-size:12px;color:var(--muted);margin-bottom:6px;}
+  .metric .value{font-family:'Zilla Slab',serif;font-size:22px;font-weight:600;color:var(--petrol);direction:ltr;text-align:right;}
+
+  /* form panel */
+  .panel{
+    background:#fff;border:1px solid var(--line);border-radius:12px;
+    padding:20px 22px;margin-bottom:26px;box-shadow:var(--shadow);
+  }
+  .panel h2{
+    font-family:'Zilla Slab',serif;font-size:17px;font-weight:600;
+    margin:0 0 16px;color:var(--petrol);
+    border-bottom:1px solid var(--line);padding-bottom:10px;
+  }
+  .form-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+    gap:12px;
+  }
+  .field label{
+    display:block;font-size:12px;color:var(--muted);margin-bottom:5px;
+  }
+  .field input, .field select{
+    width:100%;height:38px;border:1px solid var(--line-strong);border-radius:7px;
+    background:var(--paper);padding:0 10px;font-family:'Tajawal';font-size:14px;color:var(--ink);
+    direction:ltr;text-align:right;
+  }
+  .field input:focus, .field select:focus{
+    outline:none;border-color:var(--petrol);box-shadow:0 0 0 2px rgba(15,61,62,0.12);
+  }
+  .field select{direction:rtl;text-align:right;}
+  .form-actions{margin-top:16px;display:flex;gap:10px;justify-content:flex-end;}
+  button{font-family:'Tajawal';cursor:pointer;}
+  .btn{
+    height:38px;padding:0 18px;border-radius:7px;border:1px solid var(--line-strong);
+    background:#fff;color:var(--ink);font-size:14px;font-weight:500;
+  }
+  .btn:hover{background:var(--paper-2);}
+  .btn-primary{
+    background:var(--petrol);border-color:var(--petrol);color:#fff;
+  }
+  .btn-primary:hover{background:var(--petrol-2);}
+  .btn-danger{color:var(--danger);border-color:var(--danger);background:#fff;}
+  .btn-danger:hover{background:var(--danger-bg);}
+  .err{color:var(--danger);font-size:12px;margin-top:4px;display:none;}
+
+  /* table */
+  .table-toolbar{
+    display:flex;justify-content:space-between;align-items:center;
+    margin-bottom:10px;flex-wrap:wrap;gap:10px;
+  }
+  .table-toolbar .filters{display:flex;gap:8px;flex-wrap:wrap;}
+  .filters select, .filters input{
+    height:34px;border:1px solid var(--line-strong);border-radius:7px;
+    background:#fff;padding:0 10px;font-size:13px;font-family:'Tajawal';
+  }
+  table{
+    width:100%;border-collapse:collapse;background:#fff;
+    border:1px solid var(--line);border-radius:10px;overflow:hidden;
+    font-size:13.5px;
+  }
+  thead th{
+    background:var(--petrol);color:#fff;font-weight:500;
+    padding:10px 8px;text-align:center;white-space:nowrap;
+  }
+  tbody td{
+    padding:9px 8px;border-bottom:1px solid var(--line);text-align:center;
+    direction:ltr;
+  }
+  tbody tr:nth-child(even){background:var(--paper-2);}
+  tbody tr:hover{background:var(--brass-light);}
+  td.items-cell{direction:rtl;text-align:right;}
+  td.total-cell{font-weight:700;color:var(--petrol);}
+  .row-actions{display:flex;gap:6px;justify-content:center;}
+  .icon-btn{
+    width:28px;height:28px;border-radius:6px;border:1px solid var(--line-strong);
+    background:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;
+  }
+  .icon-btn.edit:hover{background:var(--brass-light);}
+  .icon-btn.del:hover{background:var(--danger-bg);color:var(--danger);border-color:var(--danger);}
+  tfoot td{
+    background:var(--paper-2);font-weight:700;color:var(--petrol);
+    padding:10px 8px;border-top:2px solid var(--petrol);
+  }
+  .empty-state{
+    text-align:center;padding:40px 20px;color:var(--muted);
+  }
+  .empty-state strong{display:block;color:var(--petrol);font-size:16px;margin-bottom:6px;font-family:'Zilla Slab',serif;}
+
+  @media (max-width:720px){
+    .metrics{grid-template-columns:repeat(2,1fr);}
+    table{font-size:12px;}
+    thead th, tbody td{padding:7px 5px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="brand-block">
+      <h1>سجل الفواتير والمخزون</h1>
+      <p id="brandSubtitle">فريق بن عقول — الفروع التسعة</p>
+    </div>
+    <div class="brand-tabs">
+      <button class="brand-tab active" data-brand="فريق بن عقول">فريق بن عقول</button>
+      <button class="brand-tab" data-brand="JUST BUNS">JUST BUNS</button>
+    </div>
+  </div>
+
+  <div class="metrics">
+    <div class="metric"><div class="label">عدد الفواتير</div><div class="value" id="mCount">0</div></div>
+    <div class="metric"><div class="label">إجمالي الكمية</div><div class="value" id="mQty">0</div></div>
+    <div class="metric"><div class="label">إجمالي القيمة (BHD)</div><div class="value" id="mTotal">0.000</div></div>
+    <div class="metric"><div class="label">آخر تحديث</div><div class="value" id="mUpdated" style="font-size:14px;">—</div></div>
+  </div>
+
+  <div class="panel">
+    <h2 id="formTitle">إضافة قيد جديد</h2>
+    <div class="form-grid">
+      <div class="field">
+        <label>CODE</label>
+        <input type="text" id="fCode" placeholder="كود الصنف">
+      </div>
+      <div class="field">
+        <label>DATE</label>
+        <input type="date" id="fDate">
+      </div>
+      <div class="field">
+        <label>ITEMS</label>
+        <input type="text" id="fItems" placeholder="اسم الصنف">
+      </div>
+      <div class="field">
+        <label>PACK</label>
+        <input type="text" id="fPack" placeholder="نوع التعبئة">
+      </div>
+      <div class="field">
+        <label>INVOICE</label>
+        <input type="text" id="fInvoice" placeholder="رقم الفاتورة">
+      </div>
+      <div class="field">
+        <label>BRANCH</label>
+        <select id="fBranch">
+          <option value="عالي">عالي (Aali)</option>
+          <option value="مدينة حمد">مدينة حمد (Hamad Town)</option>
+          <option value="جبلة حبشي">جبلة حبشي (Jeblat Hebshi)</option>
+          <option value="مليحة">مليحة (Malikya)</option>
+          <option value="المحرق">المحرق (Muharraq)</option>
+          <option value="سار">سار (Saar)</option>
+          <option value="سند">سند (Sanad)</option>
+          <option value="سترة">سترة (Sitra)</option>
+          <option value="جد حفص">جد حفص (Zinj)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>QTY</label>
+        <input type="number" id="fQty" min="0" step="1" placeholder="0">
+      </div>
+      <div class="field">
+        <label>PRICE</label>
+        <input type="number" id="fPrice" min="0" step="0.001" placeholder="0.000">
+      </div>
+      <div class="field">
+        <label>TOTAL</label>
+        <input type="text" id="fTotalDisplay" disabled placeholder="0.000">
+      </div>
+    </div>
+    <div class="err" id="formErr">الرجاء تعبئة الصنف، الكمية والسعر بشكل صحيح.</div>
+    <div class="form-actions">
+      <button class="btn" id="cancelEdit" style="display:none;">إلغاء التعديل</button>
+      <button class="btn btn-primary" id="saveBtn">حفظ القيد</button>
+    </div>
+  </div>
+
+  <div class="table-toolbar">
+    <div class="filters">
+      <select id="filterBranch">
+        <option value="">كل الفروع</option>
+      </select>
+      <input type="date" id="filterDate">
+      <button class="btn" id="clearFilters">مسح الفلاتر</button>
+    </div>
+    <button class="btn" id="exportBtn">تصدير CSV</button>
+  </div>
+
+  <div id="tableHost"></div>
+
+</div>
+
+<script>
+const BRANCHES = ["عالي","مدينة حمد","جبلة حبشي","مليحة","المحرق","سار","سند","سترة","جد حفص"];
+const BRANCH_LABELS = {
+  "عالي":"عالي (Aali)","مدينة حمد":"مدينة حمد (Hamad Town)","جبلة حبشي":"جبلة حبشي (Jeblat Hebshi)",
+  "مليحة":"مليحة (Malikya)","المحرق":"المحرق (Muharraq)","سار":"سار (Saar)","سند":"سند (Sanad)",
+  "سترة":"سترة (Sitra)","جد حفص":"جد حفص (Zinj)"
+};
+const STORAGE_KEY = "invoice_ledger_entries";
+let entries = [];
+let currentBrand = "فريق بن عقول";
+let editingId = null;
+
+const $ = (id) => document.getElementById(id);
+
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function fmt3(n){ return (Math.round(n*1000)/1000).toFixed(3); }
+
+async function loadEntries(){
+  try{
+    const res = await window.storage.get('invoice_ledger_entries');
+    entries = res ? JSON.parse(res.value) : [];
+  }catch(e){
+    entries = [];
+  }
+  render();
+}
+
+async function persist(){
+  try{
+    await window.storage.set('invoice_ledger_entries', JSON.stringify(entries));
+  }catch(e){
+    console.error('تعذر حفظ البيانات', e);
+  }
+}
+
+function nextNo(){
+  const brandEntries = entries.filter(e => e.brand === currentBrand);
+  return brandEntries.length ? Math.max(...brandEntries.map(e => e.no)) + 1 : 1;
+}
+
+function resetForm(){
+  editingId = null;
+  $('fCode').value = '';
+  $('fDate').value = todayStr();
+  $('fItems').value = '';
+  $('fPack').value = '';
+  $('fInvoice').value = '';
+  $('fBranch').value = BRANCHES[0];
+  $('fQty').value = '';
+  $('fPrice').value = '';
+  $('fTotalDisplay').value = '0.000';
+  $('formErr').style.display = 'none';
+  $('formTitle').textContent = 'إضافة قيد جديد';
+  $('cancelEdit').style.display = 'none';
+}
+
+function updateTotalPreview(){
+  const q = parseFloat($('fQty').value) || 0;
+  const p = parseFloat($('fPrice').value) || 0;
+  $('fTotalDisplay').value = fmt3(q*p);
+}
+
+function saveEntry(){
+  const items = $('fItems').value.trim();
+  const qty = parseFloat($('fQty').value);
+  const price = parseFloat($('fPrice').value);
+  if(!items || isNaN(qty) || qty < 0 || isNaN(price) || price < 0){
+    $('formErr').style.display = 'block';
+    return;
+  }
+  $('formErr').style.display = 'none';
+
+  const data = {
+    code: $('fCode').value.trim(),
+    date: $('fDate').value || todayStr(),
+    items: items,
+    pack: $('fPack').value.trim(),
+    invoice: $('fInvoice').value.trim(),
+    branch: $('fBranch').value,
+    qty: qty,
+    price: price,
+    total: qty*price,
+    brand: currentBrand
+  };
+
+  if(editingId !== null){
+    const idx = entries.findIndex(e => e.id === editingId);
+    if(idx > -1){
+      entries[idx] = {...entries[idx], ...data};
+    }
+  }else{
+    entries.push({ id: Date.now()+Math.random(), no: nextNo(), ...data });
+  }
+  persist();
+  resetForm();
+  render();
+}
+
+function startEdit(id){
+  const e = entries.find(x => x.id === id);
+  if(!e) return;
+  editingId = id;
+  $('fCode').value = e.code;
+  $('fDate').value = e.date;
+  $('fItems').value = e.items;
+  $('fPack').value = e.pack;
+  $('fInvoice').value = e.invoice;
+  $('fBranch').value = e.branch;
+  $('fQty').value = e.qty;
+  $('fPrice').value = e.price;
+  updateTotalPreview();
+  $('formTitle').textContent = 'تعديل القيد رقم ' + e.no;
+  $('cancelEdit').style.display = 'inline-block';
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function deleteEntry(id){
+  entries = entries.filter(e => e.id !== id);
+  persist();
+  render();
+}
+
+function filteredEntries(){
+  let list = entries.filter(e => e.brand === currentBrand);
+  const fb = $('filterBranch').value;
+  const fd = $('filterDate').value;
+  if(fb) list = list.filter(e => e.branch === fb);
+  if(fd) list = list.filter(e => e.date === fd);
+  return list.sort((a,b) => a.no - b.no);
+}
+
+function render(){
+  const list = filteredEntries();
+  const host = $('tableHost');
+
+  if(list.length === 0){
+    host.innerHTML = `<div class="empty-state" style="background:#fff;border:1px solid var(--line);border-radius:10px;">
+      <strong>لا توجد قيود بعد</strong>
+      أضف أول قيد فاتورة من النموذج أعلاه.
+    </div>`;
+  } else {
+    let rows = list.map(e => `
+      <tr>
+        <td>${e.no}</td>
+        <td>${escapeHtml(e.code)||'—'}</td>
+        <td>${e.date}</td>
+        <td class="items-cell">${escapeHtml(e.items)}</td>
+        <td class="items-cell">${escapeHtml(e.pack)||'—'}</td>
+        <td>${escapeHtml(e.invoice)||'—'}</td>
+        <td class="items-cell">${escapeHtml(BRANCH_LABELS[e.branch]||e.branch)}</td>
+        <td>${e.qty}</td>
+        <td>${fmt3(e.price)}</td>
+        <td class="total-cell">${fmt3(e.total)}</td>
+        <td>
+          <div class="row-actions">
+            <button class="icon-btn edit" title="تعديل" onclick="startEdit(${e.id})"><i class="ti ti-edit"></i>✎</button>
+            <button class="icon-btn del" title="حذف" onclick="deleteEntry(${e.id})">🗑</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+
+    const sumQty = list.reduce((s,e)=>s+e.qty,0);
+    const sumTotal = list.reduce((s,e)=>s+e.total,0);
+
+    host.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>NO</th><th>CODE</th><th>DATE</th><th>ITEMS</th><th>PACK</th><th>INVOICE</th>
+            <th>BRANCH</th><th>QTY</th><th>PRICE</th><th>TOTAL</th><th></th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+        <tfoot>
+          <tr>
+            <td colspan="7">الإجمالي</td>
+            <td>${sumQty}</td>
+            <td></td>
+            <td>${fmt3(sumTotal)}</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    `;
+  }
+
+  const allBrandEntries = entries.filter(e => e.brand === currentBrand);
+  $('mCount').textContent = allBrandEntries.length;
+  $('mQty').textContent = allBrandEntries.reduce((s,e)=>s+e.qty,0);
+  $('mTotal').textContent = fmt3(allBrandEntries.reduce((s,e)=>s+e.total,0));
+  $('mUpdated').textContent = allBrandEntries.length ? new Date().toLocaleDateString('ar-BH') : '—';
+}
+
+function escapeHtml(str){
+  if(!str) return '';
+  return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+function exportCSV(){
+  const list = filteredEntries();
+  if(!list.length){ return; }
+  const header = ["NO","CODE","DATE","ITEMS","PACK","INVOICE","BRANCH","QTY","PRICE","TOTAL"];
+  const rows = list.map(e => [e.no, e.code, e.date, e.items, e.pack, e.invoice, e.branch, e.qty, fmt3(e.price), fmt3(e.total)]);
+  const csv = [header, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob(["\uFEFF"+csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${currentBrand}_ledger_${todayStr()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// init filter branch options
+BRANCHES.forEach(b => {
+  const opt = document.createElement('option');
+  opt.value = b;
+  opt.textContent = BRANCH_LABELS[b];
+  $('filterBranch').appendChild(opt);
+});
+
+document.querySelectorAll('.brand-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.brand-tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    currentBrand = tab.dataset.brand;
+    $('brandSubtitle').textContent = currentBrand + ' — الفروع التسعة';
+    resetForm();
+    render();
+  });
+});
+
+$('fQty').addEventListener('input', updateTotalPreview);
+$('fPrice').addEventListener('input', updateTotalPreview);
+$('saveBtn').addEventListener('click', saveEntry);
+$('cancelEdit').addEventListener('click', resetForm);
+$('filterBranch').addEventListener('change', render);
+$('filterDate').addEventListener('change', render);
+$('clearFilters').addEventListener('click', () => {
+  $('filterBranch').value = '';
+  $('filterDate').value = '';
+  render();
+});
+$('exportBtn').addEventListener('click', exportCSV);
+
+resetForm();
+loadEntries();
+</script>
+</body>
+</html>
