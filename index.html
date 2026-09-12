@@ -388,7 +388,7 @@ function applyCodeToItems(){
   const code = parseInt($('fCode').value, 10);
   if(code >= 1 && code <= CODE_ITEMS.length){
     $('fItems').value = CODE_ITEMS[code - 1];
-    $('fQty').focus();
+    $('fPack').focus();
   }
 }
 
@@ -750,17 +750,30 @@ $('importFile').addEventListener('change', (ev) => {
 });
 
 const FIELD_ORDER = ['fCode','fDate','fItems','fPack','fInvoice','fBranch','fQty','fPrice'];
+function isCaretAtEnd(el){
+  if(el.tagName === 'SELECT') return true;
+  try{
+    if(typeof el.selectionEnd === 'number'){
+      return el.selectionEnd === el.value.length;
+    }
+  }catch(e){}
+  return true;
+}
+
 FIELD_ORDER.forEach((id, idx) => {
   const el = $(id);
   el.addEventListener('keydown', (ev) => {
-    if(ev.key === 'Enter'){
-      ev.preventDefault();
+    const isEnter = ev.key === 'Enter';
+    const isRightArrow = ev.key === 'ArrowRight' && isCaretAtEnd(el);
+    if(isEnter || isRightArrow){
       const nextId = FIELD_ORDER[idx+1];
       if(nextId){
+        ev.preventDefault();
         const nextEl = $(nextId);
         nextEl.focus();
         if(nextEl.select) nextEl.select();
-      }else{
+      }else if(isEnter){
+        ev.preventDefault();
         $('saveBtn').click();
       }
     }
