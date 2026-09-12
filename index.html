@@ -46,6 +46,7 @@
   }
   .brand-block p{margin:0;color:var(--muted);font-size:14px;}
   .brand-tabs{display:flex;gap:8px;}
+  .brand-tabs-wrap{position:relative;}
   .brand-tab{
     padding:8px 16px;border:1px solid var(--line-strong);border-radius:7px;
     background:var(--paper);color:var(--muted);font-family:'Inter';font-size:14px;
@@ -158,6 +159,32 @@
     z-index:100;
   }
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  .branch-totals-inline{
+    position:absolute;top:calc(100% + 8px);right:0;
+    background:#fff;border:1px solid var(--line);border-radius:10px;
+    padding:12px 14px;box-shadow:0 4px 14px rgba(15,61,62,0.12);
+    z-index:20;min-width:200px;max-width:260px;
+    opacity:0;visibility:hidden;transform:translateY(-4px);
+    transition:opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+    pointer-events:none;
+  }
+  .brand-tabs-wrap:hover .branch-totals-inline,
+  .brand-tabs-wrap:focus-within .branch-totals-inline{
+    opacity:1;visibility:visible;transform:translateY(0);
+    pointer-events:auto;
+  }
+  .branch-totals-grid{
+    display:flex;flex-direction:column;gap:8px;
+  }
+  .branch-total-card{
+    border-radius:7px;padding:7px 10px;
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+  }
+  .branch-total-card .bname{font-size:12px;font-weight:500;}
+  .branch-total-card .bqty{font-size:10.5px;opacity:0.8;}
+  .branch-total-card .bvalue{font-family:'Zilla Slab',serif;font-size:14px;font-weight:600;white-space:nowrap;}
+  .branch-totals-empty{color:var(--muted);font-size:12.5px;}
 </style>
 </head>
 <body>
@@ -168,9 +195,11 @@
       <h1>Invoice & Stock Ledger</h1>
       <p id="brandSubtitle">Fareeq Bin Aqool — 9 branches</p>
     </div>
-    <div class="brand-tabs">
-      <button class="brand-tab active" data-brand="Fareeq Bin Aqool">Fareeq Bin Aqool</button>
-      <button class="brand-tab" data-brand="JUST BUNS">JUST BUNS</button>
+    <div class="brand-tabs-wrap">
+      <div class="brand-tabs">
+        <button class="brand-tab active" data-brand="Fareeq Bin Aqool">Fareeq Bin Aqool</button>
+      </div>
+      <div id="branchTotalsHost" class="branch-totals-inline"></div>
     </div>
   </div>
 
@@ -246,7 +275,11 @@
       <input type="date" id="filterDate">
       <button class="btn" id="clearFilters">Clear filters</button>
     </div>
-    <button class="btn" id="exportBtn">Export CSV</button>
+    <div style="display:flex;gap:8px;">
+      <button class="btn" id="importBtn">Import CSV</button>
+      <input type="file" id="importFile" accept=".csv" style="display:none;">
+      <button class="btn" id="exportBtn">Export CSV</button>
+    </div>
   </div>
 
   <div id="tableHost"></div>
@@ -322,6 +355,8 @@ function resetForm(){
   $('formErr').style.display = 'none';
   $('formTitle').textContent = 'Add new entry';
   $('cancelEdit').style.display = 'none';
+  $('fCode').focus();
+  if($('fCode').select) $('fCode').select();
 }
 
 function updateTotalPreview(){
@@ -471,6 +506,35 @@ function render(){
   $('mQty').textContent = allBrandEntries.reduce((s,e)=>s+e.qty,0);
   $('mTotal').textContent = fmt3(allBrandEntries.reduce((s,e)=>s+e.total,0));
   $('mUpdated').textContent = allBrandEntries.length ? new Date().toLocaleDateString('en-GB') : '—';
+
+  renderBranchTotals(allBrandEntries);
+  updateFilterBranchOptions(allBrandEntries);
+}
+
+function renderBranchTotals(brandEntries){
+  const host = $('branchTotalsHost');
+  if(!brandEntries.length){
+    host.innerHTML = `<div class="branch-totals-empty">No entries yet for this brand.</div>`;
+    return;
+  }
+  const sums = {};
+  brandEntries.forEach(e => {
+    if(!sums[e.branch]) sums[e.branch] = {qty:0, total:0};
+    sums[e.branch].qty += e.qty;
+    sums[e.branch].total += e.total;
+  });
+  const cards = BRANCHES
+    .filter(b => sums[b])
+    .map(b => {
+      const c = BRANCH_COLORS[b] || {bg:"#EDEAE0", text:"#6E6A5C"};
+      const s = sums[b];
+      return `<div class="branch-total-card" style="background:${c.bg};color:${c.text};">
+        <div class="bname">${escapeHtml(b)}</div>
+        <div class="bqty">Qty: ${s.qty}</div>
+        <div class="bvalue">${fmt3(s.total)} BHD</div>
+      </div>`;
+    }).join('');
+  host.innerHTML = `<div class="branch-totals-grid">${cards}</div>`;
 }
 
 function branchBadge(branch){
@@ -498,12 +562,112 @@ function exportCSV(){
   URL.revokeObjectURL(url);
 }
 
-BRANCHES.forEach(b => {
-  const opt = document.createElement('option');
-  opt.value = b;
-  opt.textContent = b;
-  $('filterBranch').appendChild(opt);
-});
+function parseCSVLine(line){
+  const result = [];
+  let cur = '';
+  let inQuotes = false;
+  for(let i = 0; i < line.length; i++){
+    const ch = line[i];
+    if(inQuotes){
+      if(ch === '"'){
+        if(line[i+1] === '"'){ cur += '"'; i++; }
+        else{ inQuotes = false; }
+      }else{
+        cur += ch;
+      }
+    }else{
+      if(ch === '"'){ inQuotes = true; }
+      else if(ch === ','){ result.push(cur); cur = ''; }
+      else{ cur += ch; }
+    }
+  }
+  result.push(cur);
+  return result;
+}
+
+function importCSV(file){
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const text = ev.target.result.replace(/^\uFEFF/, '');
+    const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+    if(lines.length < 2){
+      showToast('No data found in file');
+      return;
+    }
+    const header = parseCSVLine(lines[0]).map(h => h.trim().toUpperCase());
+    const idx = {
+      no: header.indexOf('NO'),
+      code: header.indexOf('CODE'),
+      date: header.indexOf('DATE'),
+      items: header.indexOf('ITEMS'),
+      pack: header.indexOf('PACK'),
+      invoice: header.indexOf('INVOICE'),
+      branch: header.indexOf('BRANCH'),
+      qty: header.indexOf('QTY'),
+      price: header.indexOf('PRICE'),
+      total: header.indexOf('TOTAL')
+    };
+    if(idx.items === -1 || idx.qty === -1 || idx.price === -1){
+      showToast('CSV format not recognized');
+      return;
+    }
+    let imported = 0;
+    for(let i = 1; i < lines.length; i++){
+      const cols = parseCSVLine(lines[i]);
+      const items = (cols[idx.items] || '').trim();
+      const qty = parseFloat(cols[idx.qty]);
+      const price = parseFloat(cols[idx.price]);
+      if(!items || isNaN(qty) || isNaN(price)) continue;
+      entries.push({
+        id: Date.now() + Math.random(),
+        no: nextNo(),
+        code: idx.code > -1 ? (cols[idx.code] || '').trim() : '',
+        date: idx.date > -1 ? (cols[idx.date] || '').trim() || todayStr() : todayStr(),
+        items: items,
+        pack: idx.pack > -1 ? (cols[idx.pack] || '').trim() : '',
+        invoice: idx.invoice > -1 ? (cols[idx.invoice] || '').trim() : '',
+        branch: (idx.branch > -1 && BRANCHES.includes((cols[idx.branch]||'').trim())) ? cols[idx.branch].trim() : BRANCHES[0],
+        qty: qty,
+        price: price,
+        total: qty * price,
+        brand: currentBrand
+      });
+      imported++;
+    }
+    if(imported > 0){
+      persist();
+      render();
+      showToast(`${imported} ${imported === 1 ? 'entry' : 'entries'} imported`);
+    }else{
+      showToast('No valid rows found');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function updateFilterBranchOptions(brandEntries){
+  const sums = {};
+  brandEntries.forEach(e => {
+    if(!sums[e.branch]) sums[e.branch] = {qty:0, total:0};
+    sums[e.branch].qty += e.qty;
+    sums[e.branch].total += e.total;
+  });
+  const sel = $('filterBranch');
+  const prevValue = sel.value;
+  sel.innerHTML = '';
+  const allOpt = document.createElement('option');
+  allOpt.value = '';
+  allOpt.textContent = `All branches (${brandEntries.length} · ${fmt3(brandEntries.reduce((s,e)=>s+e.total,0))} BHD)`;
+  sel.appendChild(allOpt);
+  BRANCHES.forEach(b => {
+    const opt = document.createElement('option');
+    opt.value = b;
+    const s = sums[b];
+    opt.textContent = s ? `${b} (${s.qty} · ${fmt3(s.total)} BHD)` : `${b} (0)`;
+    sel.appendChild(opt);
+  });
+  sel.value = prevValue;
+}
 
 document.querySelectorAll('.brand-tab').forEach(tab => {
   tab.addEventListener('click', () => {
@@ -528,6 +692,12 @@ $('clearFilters').addEventListener('click', () => {
   render();
 });
 $('exportBtn').addEventListener('click', exportCSV);
+$('importBtn').addEventListener('click', () => $('importFile').click());
+$('importFile').addEventListener('change', (ev) => {
+  const file = ev.target.files[0];
+  if(file) importCSV(file);
+  ev.target.value = '';
+});
 
 const FIELD_ORDER = ['fCode','fDate','fItems','fPack','fInvoice','fBranch','fQty','fPrice'];
 FIELD_ORDER.forEach((id, idx) => {
