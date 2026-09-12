@@ -215,7 +215,7 @@
     <div class="form-grid">
       <div class="field">
         <label>CODE</label>
-        <input type="text" id="fCode" placeholder="0001">
+        <select id="fCode"></select>
       </div>
       <div class="field">
         <label>DATE</label>
@@ -223,7 +223,34 @@
       </div>
       <div class="field">
         <label>ITEMS</label>
-        <input type="text" id="fItems" placeholder="Item name">
+        <input type="text" id="fItems" placeholder="Item name" list="itemsList">
+        <datalist id="itemsList">
+          <option value="CORINDER LEAVES">
+          <option value="PARSELY">
+          <option value="SPINACH">
+          <option value="SPINT">
+          <option value="BAGAL">
+          <option value="MINT LEAVES">
+          <option value="CURRY LEAVES">
+          <option value="RED ONION">
+          <option value="GARLIC">
+          <option value="POTATO">
+          <option value="GINGER">
+          <option value="TOMATO">
+          <option value="COULIFLOWER">
+          <option value="CUCUMBER">
+          <option value="EGGPLANT">
+          <option value="LEMON">
+          <option value="OKRA">
+          <option value="GREEN CHILLY">
+          <option value="CARROT">
+          <option value="CABBAGE WHITE">
+          <option value="CHILLY LONG">
+          <option value="GREEN CAPSICUM">
+          <option value="ICEBERG LITTUS">
+          <option value="BITTER GUARD">
+          <option value="BEBY MARROW">
+        </datalist>
       </div>
       <div class="field">
         <label>PACK</label>
@@ -318,7 +345,7 @@ async function loadEntries(){
   }catch(e){
     entries = [];
   }
-  $('fCode').value = nextCode();
+  $('fCode').value = '';
   render();
 }
 
@@ -335,15 +362,39 @@ function nextNo(){
   return brandEntries.length ? Math.max(...brandEntries.map(e => e.no)) + 1 : 1;
 }
 
-function nextCode(){
-  const nums = entries.map(e => parseInt(e.code, 10)).filter(n => !isNaN(n));
-  const next = nums.length ? Math.max(...nums) + 1 : 1;
-  return String(next).padStart(4, '0');
+const CODE_ITEMS = [
+  "CORINDER LEAVES","PARSELY","SPINACH","SPINT","BAGAL","MINT LEAVES","CURRY LEAVES",
+  "RED ONION","GARLIC","POTATO","GINGER","TOMATO","COULIFLOWER","CUCUMBER","EGGPLANT",
+  "LEMON","OKRA","GREEN CHILLY","CARROT","CABBAGE WHITE","CHILLY LONG","GREEN CAPSICUM",
+  "ICEBERG LITTUS","BITTER GUARD","BEBY MARROW"
+];
+
+function populateCodeSelect(){
+  const sel = $('fCode');
+  sel.innerHTML = '';
+  const blank = document.createElement('option');
+  blank.value = '';
+  blank.textContent = 'Select code';
+  sel.appendChild(blank);
+  CODE_ITEMS.forEach((item, i) => {
+    const opt = document.createElement('option');
+    opt.value = String(i + 1);
+    opt.textContent = `${i + 1} — ${item}`;
+    sel.appendChild(opt);
+  });
+}
+
+function applyCodeToItems(){
+  const code = parseInt($('fCode').value, 10);
+  if(code >= 1 && code <= CODE_ITEMS.length){
+    $('fItems').value = CODE_ITEMS[code - 1];
+    $('fQty').focus();
+  }
 }
 
 function resetForm(){
   editingId = null;
-  $('fCode').value = nextCode();
+  $('fCode').value = '';
   $('fDate').value = todayStr();
   $('fItems').value = '';
   $('fPack').value = '';
@@ -356,7 +407,6 @@ function resetForm(){
   $('formTitle').textContent = 'Add new entry';
   $('cancelEdit').style.display = 'none';
   $('fCode').focus();
-  if($('fCode').select) $('fCode').select();
 }
 
 function updateTotalPreview(){
@@ -717,6 +767,8 @@ FIELD_ORDER.forEach((id, idx) => {
   });
 });
 
+populateCodeSelect();
+$('fCode').addEventListener('change', applyCodeToItems);
 resetForm();
 loadEntries();
 </script>
