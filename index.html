@@ -340,8 +340,8 @@ function fmt3(n){ return (Math.round(n*1000)/1000).toFixed(3); }
 
 async function loadEntries(){
   try{
-    const res = await window.storage.get(STORAGE_KEY);
-    entries = res ? JSON.parse(res.value) : [];
+    const raw = localStorage.getItem(STORAGE_KEY);
+    entries = raw ? JSON.parse(raw) : [];
   }catch(e){
     entries = [];
   }
@@ -351,9 +351,10 @@ async function loadEntries(){
 
 async function persist(){
   try{
-    await window.storage.set(STORAGE_KEY, JSON.stringify(entries));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
   }catch(e){
     console.error('Could not save data', e);
+    showToast('Could not save — storage may be full or blocked');
   }
 }
 
