@@ -315,7 +315,26 @@
 
 <div class="toast" id="toast"></div>
 
-<script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import {
+  getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAEH2DPDtFYbtOloXHUrJ3IVLNVTIZad3c",
+  authDomain: "fareeq-vegetables.firebaseapp.com",
+  projectId: "fareeq-vegetables",
+  storageBucket: "fareeq-vegetables.firebasestorage.app",
+  messagingSenderId: "823042618976",
+  appId: "1:823042618976:web:ad9d95c3c25f772c823505",
+  measurementId: "G-ZHN4408ENL"
+};
+
+const fbApp = initializeApp(firebaseConfig);
+const db = getFirestore(fbApp);
+const invoicesRef = collection(db, "invoices");
+
 const BRANCHES = ["Aali","Hamad Town","Jeblat Hebshi","Malikya","Muharraq","Saar","Sanad","Sitra","Zinj"];
 const BRANCH_COLORS = {
   "Aali": {bg:"#DCE7E4", text:"#0F3D3E"},
@@ -328,7 +347,6 @@ const BRANCH_COLORS = {
   "Sitra": {bg:"#E2E7D3", text:"#556B2F"},
   "Zinj": {bg:"#F1DFCB", text:"#A65D2E"}
 };
-const STORAGE_KEY = "invoice_ledger_entries_en";
 let entries = [];
 let currentBrand = "Fareeq Bin Aqool";
 let editingId = null;
@@ -338,24 +356,14 @@ const $ = (id) => document.getElementById(id);
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 function fmt3(n){ return (Math.round(n*1000)/1000).toFixed(3); }
 
-async function loadEntries(){
-  try{
-    const raw = localStorage.getItem(STORAGE_KEY);
-    entries = raw ? JSON.parse(raw) : [];
-  }catch(e){
-    entries = [];
-  }
-  $('fCode').value = '';
-  render();
-}
-
-async function persist(){
-  try{
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-  }catch(e){
-    console.error('Could not save data', e);
-    showToast('Could not save — storage may be full or blocked');
-  }
+function subscribeEntries(){
+  onSnapshot(invoicesRef, (snapshot) => {
+    entries = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    render();
+  }, (err) => {
+    console.error('Firestore sync error', err);
+    showToast('Sync error — check your connection');
+  });
 }
 
 function nextNo(){
@@ -425,7 +433,7 @@ function showToast(message){
   toastTimer = setTimeout(() => t.classList.remove('show'), 2000);
 }
 
-function saveEntry(){
+async function saveEntry(){
   const items = $('fItems').value.trim();
   const qty = parseFloat($('fQty').value);
   const price = parseFloat($('fPrice').value);
@@ -449,18 +457,22 @@ function saveEntry(){
   };
 
   const wasEditing = editingId !== null;
-  if(editingId !== null){
-    const idx = entries.findIndex(e => e.id === editingId);
-    if(idx > -1){
-      entries[idx] = {...entries[idx], ...data};
+  $('saveBtn').disabled = true;
+  try{
+    if(wasEditing){
+      await updateDoc(doc(db, 'invoices', editingId), data);
+    }else{
+      data.no = nextNo();
+      await addDoc(invoicesRef, data);
     }
-  }else{
-    entries.push({ id: Date.now()+Math.random(), no: nextNo(), ...data });
+    resetForm();
+    showToast(wasEditing ? 'Entry updated' : 'Entry saved');
+  }catch(err){
+    console.error(err);
+    showToast('Save failed — check your connection');
+  }finally{
+    $('saveBtn').disabled = false;
   }
-  persist();
-  resetForm();
-  render();
-  showToast(wasEditing ? 'Entry updated' : 'Entry saved');
 }
 
 function startEdit(id){
@@ -481,10 +493,13 @@ function startEdit(id){
   window.scrollTo({top:0, behavior:'smooth'});
 }
 
-function deleteEntry(id){
-  entries = entries.filter(e => e.id !== id);
-  persist();
-  render();
+async function deleteEntry(id){
+  try{
+    await deleteDoc(doc(db, 'invoices', id));
+  }catch(err){
+    console.error(err);
+    showToast('Delete failed — check your connection');
+  }
 }
 
 function filteredEntries(){
@@ -520,8 +535,8 @@ function render(){
         <td class="total-cell">${fmt3(e.total)}</td>
         <td>
           <div class="row-actions">
-            <button class="icon-btn edit" title="Edit" onclick="startEdit(${e.id})">✎</button>
-            <button class="icon-btn del" title="Delete" onclick="deleteEntry(${e.id})">🗑</button>
+            <button class="icon-btn edit" title="Edit" onclick="startEdit('${e.id}')">✎</button>
+            <button class="icon-btn del" title="Delete" onclick="deleteEntry('${e.id}')">🗑</button>
           </div>
         </td>
       </tr>
@@ -638,7 +653,7 @@ function parseCSVLine(line){
 
 function importCSV(file){
   const reader = new FileReader();
-  reader.onload = (ev) => {
+  reader.onload = async (ev) => {
     const text = ev.target.result.replace(/^\uFEFF/, '');
     const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
     if(lines.length < 2){
@@ -663,15 +678,16 @@ function importCSV(file){
       return;
     }
     let imported = 0;
+    let nextNoCounter = nextNo();
+    const uploads = [];
     for(let i = 1; i < lines.length; i++){
       const cols = parseCSVLine(lines[i]);
       const items = (cols[idx.items] || '').trim();
       const qty = parseFloat(cols[idx.qty]);
       const price = parseFloat(cols[idx.price]);
       if(!items || isNaN(qty) || isNaN(price)) continue;
-      entries.push({
-        id: Date.now() + Math.random(),
-        no: nextNo(),
+      const entryData = {
+        no: nextNoCounter++,
         code: idx.code > -1 ? (cols[idx.code] || '').trim() : '',
         date: idx.date > -1 ? (cols[idx.date] || '').trim() || todayStr() : todayStr(),
         items: items,
@@ -682,12 +698,16 @@ function importCSV(file){
         price: price,
         total: qty * price,
         brand: currentBrand
-      });
+      };
+      uploads.push(addDoc(invoicesRef, entryData));
       imported++;
     }
+    try{
+      await Promise.all(uploads);
+    }catch(err){
+      console.error(err);
+    }
     if(imported > 0){
-      persist();
-      render();
       showToast(`${imported} ${imported === 1 ? 'entry' : 'entries'} imported`);
     }else{
       showToast('No valid rows found');
@@ -784,7 +804,10 @@ FIELD_ORDER.forEach((id, idx) => {
 populateCodeSelect();
 $('fCode').addEventListener('change', applyCodeToItems);
 resetForm();
-loadEntries();
+subscribeEntries();
+
+window.startEdit = startEdit;
+window.deleteEntry = deleteEntry;
 </script>
 </body>
 </html>
