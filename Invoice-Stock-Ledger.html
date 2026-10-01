@@ -216,6 +216,14 @@
   .draft-empty{
     padding:14px 8px;color:var(--muted);font-size:13px;
   }
+  .draft-invoice-summary{
+    display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;
+    background:var(--paper-2);border:1px solid var(--line);border-radius:8px;
+    padding:10px 14px;margin-bottom:12px;font-size:13px;
+  }
+  .draft-invoice-summary .dsum-item{display:flex;gap:6px;align-items:baseline;}
+  .draft-invoice-summary .dsum-label{color:var(--muted);font-size:11px;letter-spacing:0.3px;}
+  .draft-invoice-summary .dsum-value{color:var(--petrol);font-weight:600;font-family:'Zilla Slab',serif;font-size:14.5px;}
 </style>
 </head>
 <body>
@@ -329,6 +337,7 @@
     </div>
 
     <div class="draft-wrap" id="draftWrap">
+      <div class="draft-invoice-summary" id="draftSummary"></div>
       <div id="draftHost"></div>
     </div>
 
@@ -469,6 +478,7 @@ function resetForm(){
   $('headerGrid').querySelectorAll('input,select').forEach(el => el.disabled = false);
   $('lineActions').style.display = '';
   $('draftWrap').style.display = '';
+  $('draftSummary').style.display = '';
   $('lineDivider').textContent = 'Item';
   renderDraft();
   $('fInvoice').focus();
@@ -525,7 +535,21 @@ function removeDraftItem(idx){
   renderDraft();
 }
 
+function renderDraftSummary(){
+  const sum = $('draftSummary');
+  if(!sum) return;
+  const invoice = $('fInvoice').value.trim();
+  const date = $('fDate').value || todayStr();
+  const branch = $('fBranch').value;
+  sum.innerHTML = `
+    <div class="dsum-item"><span class="dsum-label">INVOICE</span><span class="dsum-value">${escapeHtml(invoice) || '—'}</span></div>
+    <div class="dsum-item"><span class="dsum-label">DATE</span><span class="dsum-value">${escapeHtml(date)}</span></div>
+    <div class="dsum-item"><span class="dsum-label">BRANCH</span><span class="dsum-value">${escapeHtml(branch)}</span></div>
+  `;
+}
+
 function renderDraft(){
+  renderDraftSummary();
   const host = $('draftHost');
   if(!draftItems.length){
     host.innerHTML = `<div class="draft-empty">No items added yet — fill the item fields above and click "Add item to invoice".</div>`;
@@ -650,6 +674,7 @@ function startEdit(id){
   $('saveBtn').textContent = 'Update entry';
   $('lineActions').style.display = 'none';
   $('draftWrap').style.display = 'none';
+  $('draftSummary').style.display = 'none';
   $('lineDivider').textContent = 'Item (editing single entry)';
   window.scrollTo({top:0, behavior:'smooth'});
 }
@@ -915,6 +940,9 @@ document.querySelectorAll('.brand-tab').forEach(tab => {
 $('fQty').addEventListener('input', updateTotalPreview);
 $('fPrice').addEventListener('input', updateTotalPreview);
 $('addItemBtn').addEventListener('click', addItem);
+$('fDate').addEventListener('input', renderDraftSummary);
+$('fInvoice').addEventListener('input', renderDraftSummary);
+$('fBranch').addEventListener('change', renderDraftSummary);
 $('saveBtn').addEventListener('click', saveEntry);
 $('cancelEdit').addEventListener('click', resetForm);
 $('filterBranch').addEventListener('change', render);
