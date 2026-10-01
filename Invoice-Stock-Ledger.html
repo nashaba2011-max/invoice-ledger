@@ -333,6 +333,7 @@
     </div>
     <div class="err" id="formErr">Enter a valid item, quantity and price.</div>
     <div class="form-actions" id="lineActions">
+      <button class="btn" id="cancelDraftEdit" style="display:none;">Cancel item edit</button>
       <button class="btn btn-primary" id="addItemBtn">+ Add item to invoice</button>
     </div>
 
@@ -404,6 +405,7 @@ let entries = [];
 let currentBrand = "Fareeq Bin Aqool";
 let editingId = null;
 let draftItems = [];
+let editingDraftIndex = null;
 
 const $ = (id) => document.getElementById(id);
 
@@ -468,6 +470,9 @@ function clearLineFields(){
 function resetForm(){
   editingId = null;
   draftItems = [];
+  editingDraftIndex = null;
+  $('addItemBtn').textContent = '+ Add item to invoice';
+  $('cancelDraftEdit').style.display = 'none';
   $('fDate').value = todayStr();
   $('fInvoice').value = '';
   $('fBranch').value = BRANCHES[0];
@@ -524,13 +529,49 @@ function addItem(){
     return;
   }
   $('formErr').style.display = 'none';
-  draftItems.push(line);
+  if(editingDraftIndex !== null){
+    draftItems[editingDraftIndex] = line;
+    editingDraftIndex = null;
+    $('addItemBtn').textContent = '+ Add item to invoice';
+    $('cancelDraftEdit').style.display = 'none';
+  }else{
+    draftItems.push(line);
+  }
   clearLineFields();
   renderDraft();
   $('fCode').focus();
 }
 
+function editDraftItem(idx){
+  const it = draftItems[idx];
+  if(!it) return;
+  editingDraftIndex = idx;
+  $('fCode').value = it.code || '';
+  $('fItems').value = it.items;
+  $('fPack').value = it.pack;
+  $('fQty').value = it.qty;
+  $('fPrice').value = it.price;
+  updateTotalPreview();
+  $('formErr').style.display = 'none';
+  $('addItemBtn').textContent = 'Update item';
+  $('cancelDraftEdit').style.display = 'inline-block';
+  $('fItems').focus();
+}
+
+function cancelDraftEdit(){
+  editingDraftIndex = null;
+  clearLineFields();
+  $('addItemBtn').textContent = '+ Add item to invoice';
+  $('cancelDraftEdit').style.display = 'none';
+  $('fCode').focus();
+}
+
 function removeDraftItem(idx){
+  if(editingDraftIndex === idx){
+    cancelDraftEdit();
+  }else if(editingDraftIndex !== null && idx < editingDraftIndex){
+    editingDraftIndex--;
+  }
   draftItems.splice(idx, 1);
   renderDraft();
 }
@@ -556,13 +597,18 @@ function renderDraft(){
     return;
   }
   const rows = draftItems.map((it, i) => `
-    <tr>
+    <tr${i === editingDraftIndex ? ' style="background:var(--brass-light);"' : ''}>
       <td>${escapeHtml(it.items)}</td>
       <td>${escapeHtml(it.pack)||'—'}</td>
       <td class="num">${it.qty}</td>
       <td class="num">${fmt3(it.price)}</td>
       <td class="num">${fmt3(it.total)}</td>
-      <td><button type="button" class="draft-remove" title="Remove" onclick="removeDraftItem(${i})">✕</button></td>
+      <td>
+        <div class="row-actions" style="justify-content:flex-end;">
+          <button type="button" class="icon-btn edit" title="Edit" onclick="editDraftItem(${i})">✎</button>
+          <button type="button" class="draft-remove" title="Remove" onclick="removeDraftItem(${i})">✕</button>
+        </div>
+      </td>
     </tr>
   `).join('');
   const sumTotal = draftItems.reduce((s,it)=>s+it.total, 0);
@@ -660,6 +706,8 @@ function startEdit(id){
   if(!e) return;
   editingId = id;
   draftItems = [];
+  editingDraftIndex = null;
+  $('cancelDraftEdit').style.display = 'none';
   $('fDate').value = e.date;
   $('fItems').value = e.items;
   $('fCode').value = e.code;
@@ -940,6 +988,7 @@ document.querySelectorAll('.brand-tab').forEach(tab => {
 $('fQty').addEventListener('input', updateTotalPreview);
 $('fPrice').addEventListener('input', updateTotalPreview);
 $('addItemBtn').addEventListener('click', addItem);
+$('cancelDraftEdit').addEventListener('click', cancelDraftEdit);
 $('fDate').addEventListener('input', renderDraftSummary);
 $('fInvoice').addEventListener('input', renderDraftSummary);
 $('fBranch').addEventListener('change', renderDraftSummary);
@@ -1003,6 +1052,7 @@ subscribeEntries();
 window.startEdit = startEdit;
 window.deleteEntry = deleteEntry;
 window.removeDraftItem = removeDraftItem;
+window.editDraftItem = editDraftItem;
 </script>
 </body>
 </html>
